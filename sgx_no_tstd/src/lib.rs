@@ -19,7 +19,6 @@
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![feature(alloc_error_handler)]
 #![feature(lang_items)]
-
 #![allow(internal_features)]
 
 extern crate alloc as alloc_crate;
@@ -44,7 +43,6 @@ fn begin_panic_handler(_info: &PanicInfo<'_>) -> ! {
 }
 
 #[lang = "eh_personality"]
-#[no_mangle]
 unsafe extern "C" fn rust_eh_personality() {}
 
 static HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());

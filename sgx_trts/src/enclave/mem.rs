@@ -106,6 +106,7 @@ static mut IMAGE: MaybeUninit<Image> = MaybeUninit::uninit();
 
 impl Image {
     pub fn init() {
+        #[allow(static_mut_refs)]
         let image = unsafe { IMAGE.assume_init_mut() };
         image.image_base = Self::image_base();
         image.image_size = Self::image_size();
@@ -116,7 +117,10 @@ impl Image {
 
     #[inline]
     pub fn get() -> &'static Image {
-        unsafe { IMAGE.assume_init_ref() }
+        #[allow(static_mut_refs)]
+        unsafe {
+            IMAGE.assume_init_ref()
+        }
     }
 
     #[inline]
@@ -178,6 +182,7 @@ impl Heap {
                     size: Self::size(),
                     min_size: Self::min_size(),
                 });
+                #[allow(static_mut_refs)]
                 HEAP.as_ref().unwrap()
             }
         }
@@ -251,6 +256,7 @@ impl RsrvMem {
                     min_size: Self::min_size(),
                     perm: Self::default_perm(),
                 });
+                #[allow(static_mut_refs)]
                 RSRV_MEM.as_ref().unwrap()
             }
         }

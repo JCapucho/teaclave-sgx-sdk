@@ -147,6 +147,7 @@ fn get_tcs_event(tcs: usize) -> &'static SeEvent {
         INIT.call_once(|| {
             TCS_EVENT_CACHE = Some(TcsEventCache::new());
         });
+        #[allow(static_mut_refs)]
         TCS_EVENT_CACHE
             .as_ref()
             .expect("TCS_EVENT_CACHE is not initialized.")

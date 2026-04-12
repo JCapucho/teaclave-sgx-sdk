@@ -245,11 +245,15 @@ impl SysFeatures {
 
     #[inline]
     pub fn get() -> &'static SysFeatures {
-        unsafe { &SYS_FEATURES }
+        #[allow(static_mut_refs)]
+        unsafe {
+            &SYS_FEATURES
+        }
     }
 
     #[inline]
     pub unsafe fn get_mut() -> &'static mut SysFeatures {
+        #[allow(static_mut_refs)]
         &mut SYS_FEATURES
     }
 

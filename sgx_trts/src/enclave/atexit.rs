@@ -109,6 +109,7 @@ pub fn cleanup() {
         unsafe {
             let queue = {
                 let _guard = LOCK.lock();
+                #[allow(static_mut_refs)]
                 mem::replace(&mut QUEUE, if i == ITERS { DONE } else { ptr::null_mut() })
             };
             assert!(queue != DONE);

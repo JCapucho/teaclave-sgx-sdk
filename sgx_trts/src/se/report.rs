@@ -99,6 +99,7 @@ impl AlignReport {
                 REPORT = report;
                 Ok(())
             });
+            #[allow(static_mut_refs)]
             &REPORT
         }
     }

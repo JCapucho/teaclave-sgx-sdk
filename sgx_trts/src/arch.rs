@@ -433,6 +433,7 @@ impl Global {
     #[inline]
     pub fn get() -> &'static Global {
         unsafe {
+            #[allow(static_mut_refs)]
             let ptr = &g_global_data as *const _ as *const Global;
             &*ptr
         }
