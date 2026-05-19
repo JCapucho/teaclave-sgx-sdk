@@ -19,6 +19,7 @@
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![feature(alloc_error_handler)]
 #![feature(lang_items)]
+#![feature(linkage)]
 #![allow(internal_features)]
 
 extern crate alloc as alloc_crate;
@@ -37,15 +38,37 @@ pub use sgx_alloc::System;
 #[global_allocator]
 static ALLOC: sgx_alloc::System = sgx_alloc::System;
 
+static PANIC_ERROR_HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
+
+/// Registers a custom panic error hook, replacing any that was previously registered.
+pub fn set_panic_error_hook(hook: fn(&PanicInfo<'_>)) {
+    PANIC_ERROR_HOOK.store(hook as *mut (), Ordering::SeqCst);
+}
+
+/// Unregisters the current panic error hook, returning it.
+pub fn take_panic_error_hook() -> Option<fn(&PanicInfo<'_>)> {
+    let hook = PANIC_ERROR_HOOK.swap(ptr::null_mut(), Ordering::SeqCst);
+    if hook.is_null() {
+        None
+    } else {
+        Some(unsafe { mem::transmute(hook) })
+    }
+}
+
 #[panic_handler]
-fn begin_panic_handler(_info: &PanicInfo<'_>) -> ! {
+fn begin_panic_handler(info: &PanicInfo<'_>) -> ! {
+    let hook = PANIC_ERROR_HOOK.load(Ordering::SeqCst);
+    if !hook.is_null() {
+        let hook: fn(&PanicInfo<'_>) = unsafe { mem::transmute(hook) };
+        hook(info);
+    }
     error::abort()
 }
 
 #[lang = "eh_personality"]
 unsafe extern "C" fn rust_eh_personality() {}
 
-static HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
+static ALLOC_ERROR_HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 
 /// Registers a custom allocation error hook, replacing any that was previously registered.
 ///
@@ -59,7 +82,7 @@ static HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 ///
 /// The allocation error hook is a global resource.
 pub fn set_alloc_error_hook(hook: fn(Layout)) {
-    HOOK.store(hook as *mut (), Ordering::SeqCst);
+    ALLOC_ERROR_HOOK.store(hook as *mut (), Ordering::SeqCst);
 }
 
 /// Unregisters the current allocation error hook, returning it.
@@ -68,7 +91,7 @@ pub fn set_alloc_error_hook(hook: fn(Layout)) {
 ///
 /// If no custom hook is registered, the default hook will be returned.
 pub fn take_alloc_error_hook() -> fn(Layout) {
-    let hook = HOOK.swap(ptr::null_mut(), Ordering::SeqCst);
+    let hook = ALLOC_ERROR_HOOK.swap(ptr::null_mut(), Ordering::SeqCst);
     if hook.is_null() {
         default_alloc_error_hook
     } else {
@@ -80,7 +103,7 @@ fn default_alloc_error_hook(_layout: Layout) {}
 
 #[alloc_error_handler]
 pub fn rust_oom(layout: Layout) -> ! {
-    let hook = HOOK.load(Ordering::SeqCst);
+    let hook = ALLOC_ERROR_HOOK.load(Ordering::SeqCst);
     let hook: fn(Layout) = if hook.is_null() {
         default_alloc_error_hook
     } else {
@@ -91,6 +114,7 @@ pub fn rust_oom(layout: Layout) -> ! {
 }
 
 #[no_mangle]
+#[linkage = "weak"]
 unsafe extern "C" fn global_init_ecall(
     _eid: u64,
     _path: *const u8,
@@ -103,4 +127,5 @@ unsafe extern "C" fn global_init_ecall(
 }
 
 #[no_mangle]
+#[linkage = "weak"]
 unsafe extern "C" fn global_exit_ecall() {}
